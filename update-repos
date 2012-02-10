@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'fileutils'
+
+$old_pwd = `pwd`.chomp
+
+def scm_cmds(path)
+  if File.directory?(path+"/.git")
+    $default_remote = "origin"
+    $remote_cmd = "git remote"
+    $remote_name = lambda {|r| return "git remote -v | grep #{r} | grep fetch | awk '{print $2}'"}
+    $pull_cmd = "git pull"
+  elsif File.directory?(path+"/.hg")
+    $default_remote = "default"
+    $remote_cmd = "hg paths | awk '{print $1}'"
+    $remote_name = lambda {|r| return "hg path #{r}"}
+    $pull_cmd = "hg pull -u"
+  elsif File.directory?(path+"/.svn")
+    $default_remote = "default"
+    $remote_cmd = "echo default"
+    $remote_name = lambda {|r| return "svn info | grep URL | awk '{print $2}'"}
+    $pull_cmd = "svn update"
+  else
+    return 0
+  end
+  return 1
+end
+
+def do_pull(repository = nil)
+  if repository.nil?
+    puts 'Pulling: ' + `#{$remote_name.call ''}`
+    puts `#{$pull_cmd}` + "\n"
+  else
+    puts 'Pulling: ' + `#{$remote_name.call repository}`
+    puts `#{$pull_cmd} #{repository}` + "\n"
+  end
+end
+
+def update_repo(path)
+  puts "Updating repositories in #{path}."
+  if File.directory?(path)
+    FileUtils.cd path
+    `find . -maxdepth 1 -mindepth 1 -type d`.each do |repository|
+      repository = path.to_s.strip + repository.to_s.strip
+      repository = repository.gsub(/.*\// , '').strip
+      puts "Updating repository: #{repository}"
+      FileUtils.cd repository
+      if scm_cmds(".")
+        remotes = `#{$remote_cmd}`
+        if remotes.include? $default_remote
+          do_pull $default_remote
+        else
+          case remotes.to_a.count
+          when 1
+            do_pull
+          when 0
+            puts "[ FAIL ] Unable to locate any remote branches.\n\n"
+          else
+            puts "Default remote \"#{default_remote}\" not detected. Too many alternative remotes to pull automatically.\n"
+          end
+        end
+      else
+        puts "[ FAIL ] Skipping unknown repository.\n"
+      end
+      FileUtils.cd $old_pwd.strip
+    end
+    puts "[ DONE ]\n"
+  else
+    puts "[ FAIL ] #{path} does not contain any repositories!"
+  end
+end
+
+if ARGV.length < 1
+  update_repo $old_pwd
+else
+  ARGV.each do|path|
+    update_repo path
+  end
+end
