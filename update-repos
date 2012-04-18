@@ -22,9 +22,9 @@ def scm_cmds(path)
     $remote_name = lambda {|r| return "svn info | grep URL | awk '{print $2}'"}
     $pull_cmd = "svn update"
   else
-    return 0
+    return false
   end
-  return 1
+  return true
 end
 
 def do_pull(repository = nil)
