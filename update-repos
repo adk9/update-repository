@@ -41,7 +41,7 @@ def update_repo(path)
   puts "Updating repositories in #{path}."
   if File.directory?(path)
     FileUtils.cd path
-    `find . -maxdepth 1 -mindepth 1 -type d`.each do |repository|
+    `find . -maxdepth 1 -mindepth 1 -type d`.each_line do |repository|
       repository = path.to_s.strip + repository.to_s.strip
       repository = repository.gsub(/.*\// , '').strip
       puts "Updating repository: #{repository}"
